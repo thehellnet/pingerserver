@@ -21,14 +21,18 @@
 
 
 #include <stdlib.h>
-#include <unistd.h>
-#include <pthread.h>
 #include <signal.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "pingerserver.h"
 #include "ui.h"
 #include "cfg.h"
 #include "log.h"
+#include "config.h"
 
 char *program_name;
 cfg *conf;
@@ -70,4 +74,41 @@ void signal_handler(int signal) {
  */
 
 void main_program() {
+    int sck;
+    struct sockaddr_in si_me;
+    struct sockaddr_in si_other;
+    char buffer[DEFAULT_UDP_BUFFER];
+    socklen_t slen = sizeof(si_other);
+    char ipaddr[16];
+    ssize_t ln;
+
+    sck = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+
+    if (sck == -1) {
+        ui_message(UI_ERROR, "MAIN", "Unable to create socket");
+        return;
+    }
+
+    memset((char *) &si_me, 0, sizeof(si_me));
+    si_me.sin_family = AF_INET;
+    si_me.sin_port = htons(conf->udp_port);
+    si_me.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    if (bind(sck, (const struct sockaddr *) &si_me, sizeof(si_me)) == -1) {
+        ui_message(UI_ERROR, "MAIN", "Unable to bind socket");
+        return;
+    }
+    while (keep_running == 1) {
+        ln = recvfrom(sck, buffer, DEFAULT_UDP_BUFFER, 0, (struct sockaddr *) &si_other, &slen);
+        if (ln == -1) {
+            ui_message(UI_ERROR, "MAIN", "Unable to read from socket");
+            break;
+        }
+
+        inet_ntop(AF_INET, &(si_other.sin_addr), ipaddr, INET_ADDRSTRLEN);
+
+        ui_message(UI_INFO, "MAIN", "Received %d bytes packet from %s:%d", ln, ipaddr, ntohs(si_other.sin_port));
+    }
+
+    close(sck);
 }

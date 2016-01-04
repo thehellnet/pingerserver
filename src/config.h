@@ -28,6 +28,7 @@
 #define DEFAULT_LOG_FILE_NAME "pingerserver.log"
 
 #define DEFAULT_UDP_PORT 62485
+#define DEFAULT_UDP_BUFFER 2048
 
 #define UI_MESSAGES_OUTPUT stderr
 #define UI_MESSAGES_MAX_LENGTH 60
